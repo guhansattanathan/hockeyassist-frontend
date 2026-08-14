@@ -44,6 +44,9 @@ export const playerService = {
     // Get all teams
     getAllTeams: () => api.get('/teams'),
     
+    // Get advanced metrics
+    getAdvancedMetrics: (id) => api.get(`/players/${id}/advanced/seasons`),
+
     // Get league leaders
     getLeagueLeaders: (season, stat, limit = 10) => 
         api.get(`/leaders/${season}/${stat}?limit=${limit}`),

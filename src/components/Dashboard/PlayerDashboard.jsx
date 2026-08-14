@@ -3,7 +3,8 @@ import { playerService } from '../../services/api';
 import CareerTrajectory from '../Charts/CareerTrajectory';
 import EfficiencyChart from '../Charts/EfficiencyChart';
 import SeasonAveragesChart from '../Charts/SeasonAveragesChart';
-import GamesPlayedChart from '../Charts/GamesPlayedChart'
+import GamesPlayedChart from '../Charts/GamesPlayedChart';
+import EfficiencyRadarChart from '../Charts/EfficiencyRadarChart';
 
 // Basketball & Analytics SVG Icons
 const Icons = {
@@ -353,6 +354,7 @@ const PlayerDashboard = ({ player }) => {
           <SeasonAveragesChart seasons={seasonAverages.length > 0 ? seasonAverages : seasons} />
           <GamesPlayedChart seasons={seasons} />
           <EfficiencyChart seasons={seasons} />
+          <EfficiencyRadarChart playerId={player.nbaPlayerId} />
         </div>
       )}
     </div>

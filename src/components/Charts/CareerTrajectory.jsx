@@ -77,7 +77,7 @@ const CareerTrajectory = ({ seasons }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h3 className="text-lg font-semibold text-white tracking-tight">
-            Career Progression
+            Per-Season Totals
           </h3>
           <p className="text-xs text-zinc-400 mt-0.5">
             Per-season breakdown across key statistical metrics
