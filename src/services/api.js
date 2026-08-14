@@ -28,6 +28,9 @@ export const playerService = {
     
     // Get player seasons
     getPlayerSeasons: (id) => api.get(`/players/${id}/seasons`),
+
+    // Get season-by-season per-game averages (e.g. 27.1 PPG)
+    getPlayerSeasonsAverages: (id) => api.get(`/players/${id}/averages/seasons`),
     
     // Get career totals
     getCareerTotals: (id) => api.get(`/players/${id}/career`),

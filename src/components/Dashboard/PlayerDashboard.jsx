@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { playerService } from '../../services/api';
 import CareerTrajectory from '../Charts/CareerTrajectory';
 import EfficiencyChart from '../Charts/EfficiencyChart';
+import SeasonAveragesChart from '../Charts/SeasonAveragesChart';
 
 // Basketball & Analytics SVG Icons
 const Icons = {
@@ -78,7 +79,8 @@ const useCountUp = (endValue, duration = 1000) => {
     let startTime = null;
     let animationFrameId;
 
-    const target = typeof endValue === 'number' ? endValue : 0;
+    const parsedTarget = Number(endValue);
+    const target = !isNaN(parsedTarget) ? parsedTarget : 0;
 
     const animate = (currentTime) => {
       if (!startTime) startTime = currentTime;
@@ -97,7 +99,7 @@ const useCountUp = (endValue, duration = 1000) => {
 
     animationFrameId = requestAnimationFrame(animate);
 
-    return () => cancelAnimationFrame(animationFrameId);
+    return () => cancelAnimationFrame(animate);
   }, [endValue, duration]);
 
   return count;
@@ -131,22 +133,22 @@ const StatCard = ({ label, value, Icon }) => {
 
 const PlayerDashboard = ({ player }) => {
   const [seasons, setSeasons] = useState([]);
+  const [seasonAverages, setSeasonAverages] = useState([]);
   const [careerTotals, setCareerTotals] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Mouse tracking state & ref for the spotlight banner
+  // BannerRef & CSS Variable Spotlight Optimization
   const bannerRef = useRef(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isBannerHovered, setIsBannerHovered] = useState(false);
 
   const handleMouseMove = (e) => {
     if (!bannerRef.current) return;
     const rect = bannerRef.current.getBoundingClientRect();
-    setMousePos({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    bannerRef.current.style.setProperty('--mouse-x', `${x}px`);
+    bannerRef.current.style.setProperty('--mouse-y', `${y}px`);
   };
 
   useEffect(() => {
@@ -159,12 +161,15 @@ const PlayerDashboard = ({ player }) => {
       setLoading(true);
       setError(null);
       try {
-        const [seasonsRes, totalsRes] = await Promise.all([
+        // Fetch seasons, season per-game averages, and career totals in parallel
+        const [seasonsRes, averagesRes, totalsRes] = await Promise.all([
           playerService.getPlayerSeasons(player.nbaPlayerId),
+          playerService.getPlayerSeasonsAverages(player.nbaPlayerId),
           playerService.getCareerTotals(player.nbaPlayerId),
         ]);
-        setSeasons(seasonsRes.data);
-        setCareerTotals(totalsRes.data);
+        setSeasons(seasonsRes.data || []);
+        setSeasonAverages(averagesRes.data || []);
+        setCareerTotals(totalsRes.data || null);
       } catch (err) {
         setError(err.response?.data?.message || err.message);
         console.error('Error fetching player data:', err);
@@ -217,6 +222,8 @@ const PlayerDashboard = ({ player }) => {
   const formatPosition = (position) => {
     if (!position) return 'N/A';
 
+    const posStr = String(position);
+
     const positionMap = {
       'guardforward': 'Guard/Forward',
       'forwardcenter': 'Forward/Center',
@@ -235,13 +242,13 @@ const PlayerDashboard = ({ player }) => {
       'c': 'Center'
     };
 
-    const normalized = position.toString().trim().toLowerCase();
+    const normalized = posStr.trim().toLowerCase();
 
     if (positionMap[normalized]) {
       return positionMap[normalized];
     }
 
-    const formattedCamelCase = position
+    const formattedCamelCase = posStr
       .replace(/([a-z])([A-Z])/g, '$1/$2')
       .replace(/[-_]+/g, '/')
       .replace(/[0-9#]/g, '')
@@ -259,7 +266,7 @@ const PlayerDashboard = ({ player }) => {
 
   return (
     <div className="space-y-8 mt-4">
-      {/* Player Profile Header with Interactive Spotlight */}
+      {/* Player Profile Header */}
       <div 
         ref={bannerRef}
         onMouseMove={handleMouseMove}
@@ -271,7 +278,7 @@ const PlayerDashboard = ({ player }) => {
           className="pointer-events-none absolute -inset-px transition-opacity duration-300 rounded-2xl"
           style={{
             opacity: isBannerHovered ? 1 : 0,
-            background: `radial-gradient(450px circle at ${mousePos.x}px ${mousePos.y}px, rgba(249, 115, 22, 0.18), transparent 80%)`,
+            background: 'radial-gradient(450px circle at var(--mouse-x, 0px) var(--mouse-y, 0px), rgba(249, 115, 22, 0.18), transparent 80%)',
           }}
         />
 
@@ -287,8 +294,8 @@ const PlayerDashboard = ({ player }) => {
               alt={player.name}
               className="w-full h-full object-cover object-top"
               onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = '/default-avatar.png';
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = '/default-avatar.png';
               }}
             />
           </div>
@@ -337,10 +344,12 @@ const PlayerDashboard = ({ player }) => {
         </div>
       )}
 
-      {/* Direct Chart Display Section */}
-      {seasons.length > 0 && (
+      {/* Chart Section */}
+      {(seasons.length > 0 || seasonAverages.length > 0) && (
         <div className="grid grid-cols-1 gap-8">
           <CareerTrajectory seasons={seasons} />
+          {/* Passed seasonAverages directly; falls back to seasons if endpoint returns empty */}
+          <SeasonAveragesChart seasons={seasonAverages.length > 0 ? seasonAverages : seasons} />
           <EfficiencyChart seasons={seasons} />
         </div>
       )}
