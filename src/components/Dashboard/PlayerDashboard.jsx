@@ -5,12 +5,13 @@ import EfficiencyChart from '../Charts/EfficiencyChart';
 import SeasonAveragesChart from '../Charts/SeasonAveragesChart';
 import GamesPlayedChart from '../Charts/GamesPlayedChart';
 import EfficiencyRadarChart from '../Charts/EfficiencyRadarChart';
+import HexagonalShotChart from '../Charts/HexagonalShotChart'; // 1. Import Shot Chart
 
 // Basketball & Analytics SVG Icons
 const Icons = {
-  Basketball: ({ isHovered }) => (
+  Basketball: ({ className = "w-5 h-5 text-zinc-400" }) => (
     <svg 
-      className={`w-5 h-5 transition-colors duration-300 ${isHovered ? 'text-orange-400' : 'text-orange-500'}`} 
+      className={className} 
       viewBox="0 0 24 24" 
       fill="none" 
       stroke="currentColor" 
@@ -25,9 +26,9 @@ const Icons = {
       <line x1="2" y1="12" x2="22" y2="12" />
     </svg>
   ),
-  Rebounds: ({ isHovered }) => (
+  Rebounds: ({ className = "w-5 h-5 text-zinc-400" }) => (
     <svg 
-      className={`w-5 h-5 transition-colors duration-300 ${isHovered ? 'text-orange-400' : 'text-zinc-400'}`} 
+      className={className} 
       viewBox="0 0 24 24" 
       fill="none" 
       stroke="currentColor" 
@@ -40,9 +41,9 @@ const Icons = {
       <circle cx="12" cy="19" r="1" />
     </svg>
   ),
-  Target: ({ isHovered }) => (
+  Target: ({ className = "w-5 h-5 text-zinc-400" }) => (
     <svg 
-      className={`w-5 h-5 transition-colors duration-300 ${isHovered ? 'text-orange-400' : 'text-zinc-400'}`} 
+      className={className} 
       viewBox="0 0 24 24" 
       fill="none" 
       stroke="currentColor" 
@@ -55,9 +56,9 @@ const Icons = {
       <circle cx="12" cy="12" r="2" />
     </svg>
   ),
-  Calendar: ({ isHovered }) => (
+  Calendar: ({ className = "w-5 h-5 text-zinc-400" }) => (
     <svg 
-      className={`w-5 h-5 transition-colors duration-300 ${isHovered ? 'text-orange-400' : 'text-zinc-400'}`} 
+      className={className} 
       viewBox="0 0 24 24" 
       fill="none" 
       stroke="currentColor" 
@@ -87,8 +88,7 @@ const useCountUp = (endValue, duration = 1000) => {
     const animate = (currentTime) => {
       if (!startTime) startTime = currentTime;
       const progress = Math.min((currentTime - startTime) / duration, 1);
-
-      const easeOutProgress = 1 - (1 - progress) * (1 - progress);
+      const easeOutProgress = 1 - Math.pow(1 - progress, 2);
 
       setCount(Math.floor(easeOutProgress * target));
 
@@ -101,16 +101,22 @@ const useCountUp = (endValue, duration = 1000) => {
 
     animationFrameId = requestAnimationFrame(animate);
 
-    return () => cancelAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
   }, [endValue, duration]);
 
   return count;
 };
 
-// Stat Card Component with Hover Color Inversion
-const StatCard = ({ label, value, Icon }) => {
+// Stat Card Component
+const StatCard = ({ label, value, Icon, accentIcon = false }) => {
   const animatedValue = useCountUp(value, 1000);
   const [isHovered, setIsHovered] = useState(false);
+
+  const iconColorClass = isHovered 
+    ? 'text-orange-400' 
+    : accentIcon 
+      ? 'text-orange-500' 
+      : 'text-zinc-400';
 
   return (
     <div 
@@ -123,7 +129,7 @@ const StatCard = ({ label, value, Icon }) => {
           {label}
         </span>
         <div className="p-1.5 bg-zinc-50 group-hover:bg-zinc-800 rounded-lg border border-zinc-100 group-hover:border-zinc-700/60 flex items-center justify-center transition-all duration-300">
-          <Icon isHovered={isHovered} />
+          <Icon className={`w-5 h-5 transition-colors duration-300 ${iconColorClass}`} />
         </div>
       </div>
       <p className="text-2xl sm:text-3xl font-extrabold text-zinc-900 group-hover:text-white tracking-tight font-mono transition-colors duration-300">
@@ -137,10 +143,10 @@ const PlayerDashboard = ({ player }) => {
   const [seasons, setSeasons] = useState([]);
   const [seasonAverages, setSeasonAverages] = useState([]);
   const [careerTotals, setCareerTotals] = useState(null);
+  const [shotData, setShotData] = useState([]); // 2. State for Shot Chart Data
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // BannerRef & CSS Variable Spotlight Optimization
   const bannerRef = useRef(null);
   const [isBannerHovered, setIsBannerHovered] = useState(false);
 
@@ -154,6 +160,8 @@ const PlayerDashboard = ({ player }) => {
   };
 
   useEffect(() => {
+    let isCancelled = false;
+
     if (!player) {
       setLoading(false);
       return;
@@ -163,31 +171,45 @@ const PlayerDashboard = ({ player }) => {
       setLoading(true);
       setError(null);
       try {
-        // Fetch seasons, season per-game averages, and career totals in parallel
-        const [seasonsRes, averagesRes, totalsRes] = await Promise.all([
+        // Fetch player seasons, averages, career totals, and shot locations in parallel
+        const [seasonsRes, averagesRes, totalsRes, shotsRes] = await Promise.all([
           playerService.getPlayerSeasons(player.nbaPlayerId),
           playerService.getPlayerSeasonsAverages(player.nbaPlayerId),
           playerService.getCareerTotals(player.nbaPlayerId),
+          // Fetch shot chart locations if endpoint exists, or fallback gracefully
+          playerService.getPlayerShots ? playerService.getPlayerShots(player.nbaPlayerId) : Promise.resolve({ data: [] }),
         ]);
-        setSeasons(seasonsRes.data || []);
-        setSeasonAverages(averagesRes.data || []);
-        setCareerTotals(totalsRes.data || null);
+
+        if (!isCancelled) {
+          setSeasons(seasonsRes.data || []);
+          setSeasonAverages(averagesRes.data || []);
+          setCareerTotals(totalsRes.data || null);
+          setShotData(shotsRes.data || []);
+        }
       } catch (err) {
-        setError(err.response?.data?.message || err.message);
-        console.error('Error fetching player data:', err);
+        if (!isCancelled) {
+          setError(err.response?.data?.message || err.message);
+          console.error('Error fetching player data:', err);
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     };
 
     fetchPlayerData();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [player]);
 
   if (!player) {
     return (
       <div className="text-center py-24 px-4 border border-dashed border-zinc-200 rounded-2xl bg-zinc-50/50 max-w-xl mx-auto my-8">
         <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-200/60 text-orange-600 flex items-center justify-center mx-auto mb-3">
-          <Icons.Basketball />
+          <Icons.Basketball className="w-6 h-6 text-orange-500" />
         </div>
         <h3 className="text-base font-semibold text-zinc-900">No Player Selected</h3>
         <p className="text-sm text-zinc-500 mt-1">Search for an NBA player above to view detailed career analytics.</p>
@@ -223,7 +245,6 @@ const PlayerDashboard = ({ player }) => {
 
   const formatPosition = (position) => {
     if (!position) return 'N/A';
-
     const posStr = String(position);
 
     const positionMap = {
@@ -245,30 +266,20 @@ const PlayerDashboard = ({ player }) => {
     };
 
     const normalized = posStr.trim().toLowerCase();
+    if (positionMap[normalized]) return positionMap[normalized];
 
-    if (positionMap[normalized]) {
-      return positionMap[normalized];
-    }
-
-    const formattedCamelCase = posStr
+    return posStr
       .replace(/([a-z])([A-Z])/g, '$1/$2')
       .replace(/[-_]+/g, '/')
       .replace(/[0-9#]/g, '')
-      .trim();
-
-    return formattedCamelCase || 'N/A';
+      .trim() || 'N/A';
   };
 
-  const getTeamDisplay = () => {
-    if (player.team) {
-      return player.team;
-    }
-    return 'NBA';
-  };
+  const getTeamDisplay = () => player.team || 'NBA';
 
   return (
     <div className="space-y-8 mt-4">
-      {/* Player Profile Header */}
+      {/* Player Profile Header Banner */}
       <div 
         ref={bannerRef}
         onMouseMove={handleMouseMove}
@@ -327,6 +338,7 @@ const PlayerDashboard = ({ player }) => {
             label="Points" 
             value={careerTotals.totalPoints || 0} 
             Icon={Icons.Basketball}
+            accentIcon={true}
           />
           <StatCard 
             label="Rebounds" 
@@ -346,11 +358,16 @@ const PlayerDashboard = ({ player }) => {
         </div>
       )}
 
-      {/* Chart Section */}
+      {/* Visual Analytics & Charts Section */}
       {(seasons.length > 0 || seasonAverages.length > 0) && (
         <div className="grid grid-cols-1 gap-8">
+          {/* 3. Render Hexagonal Shot Chart */}
+          <HexagonalShotChart 
+            shots={shotData} 
+            playerName={player.name} 
+          />
+
           <CareerTrajectory seasons={seasons} />
-          {/* Passed seasonAverages directly; falls back to seasons if endpoint returns empty */}
           <SeasonAveragesChart seasons={seasonAverages.length > 0 ? seasonAverages : seasons} />
           <GamesPlayedChart seasons={seasons} />
           <EfficiencyChart seasons={seasons} />
