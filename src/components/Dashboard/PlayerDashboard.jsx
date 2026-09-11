@@ -5,7 +5,7 @@ import EfficiencyChart from '../Charts/EfficiencyChart';
 import SeasonAveragesChart from '../Charts/SeasonAveragesChart';
 import GamesPlayedChart from '../Charts/GamesPlayedChart';
 import EfficiencyRadarChart from '../Charts/EfficiencyRadarChart';
-import HexagonalShotChart from '../Charts/HexagonalShotChart'; // 1. Import Shot Chart
+import HorizontalCourtChart from '../Charts/HorizontalCourtChart'; // 1. Import Shot Chart
 
 // Basketball & Analytics SVG Icons
 const Icons = {
@@ -177,7 +177,12 @@ const PlayerDashboard = ({ player }) => {
           playerService.getPlayerSeasonsAverages(player.nbaPlayerId),
           playerService.getCareerTotals(player.nbaPlayerId),
           // Fetch shot chart locations if endpoint exists, or fallback gracefully
-          playerService.getPlayerShots ? playerService.getPlayerShots(player.nbaPlayerId) : Promise.resolve({ data: [] }),
+          playerService.getPlayerShots 
+            ? playerService.getPlayerShots(player.nbaPlayerId).catch((err) => {
+                console.warn(`Shot data unavailable for ${player.name}:`, err.message);
+                return { data: [] }; // Return empty data instead of crashing
+              }) 
+            : Promise.resolve({ data: [] }),
         ]);
 
         if (!isCancelled) {
@@ -362,16 +367,15 @@ const PlayerDashboard = ({ player }) => {
       {(seasons.length > 0 || seasonAverages.length > 0) && (
         <div className="grid grid-cols-1 gap-8">
           {/* 3. Render Hexagonal Shot Chart */}
-          <HexagonalShotChart 
-            shots={shotData} 
-            playerName={player.name} 
-          />
-
           <CareerTrajectory seasons={seasons} />
           <SeasonAveragesChart seasons={seasonAverages.length > 0 ? seasonAverages : seasons} />
           <GamesPlayedChart seasons={seasons} />
           <EfficiencyChart seasons={seasons} />
           <EfficiencyRadarChart playerId={player.nbaPlayerId} />
+          <HorizontalCourtChart 
+            shots={shotData} 
+            playerName={player.name} 
+          />
         </div>
       )}
     </div>
