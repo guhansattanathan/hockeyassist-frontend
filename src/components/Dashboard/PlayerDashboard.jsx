@@ -5,7 +5,9 @@ import EfficiencyChart from '../Charts/EfficiencyChart';
 import SeasonAveragesChart from '../Charts/SeasonAveragesChart';
 import GamesPlayedChart from '../Charts/GamesPlayedChart';
 import EfficiencyRadarChart from '../Charts/EfficiencyRadarChart';
-import HorizontalCourtChart from '../Charts/HorizontalCourtChart'; // 1. Import Shot Chart
+import HorizontalCourtChart from '../Charts/HorizontalCourtChart';
+import TwoWayVennChart from '../Charts/TwoWayVennChart';
+
 
 // Basketball & Analytics SVG Icons
 const Icons = {
@@ -376,6 +378,7 @@ const PlayerDashboard = ({ player }) => {
             shots={shotData} 
             playerName={player.name} 
           />
+          <TwoWayVennChart season="2025-26" currentPlayerId={player.nbaPlayerId} />
         </div>
       )}
     </div>

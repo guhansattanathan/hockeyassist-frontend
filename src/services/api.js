@@ -58,6 +58,11 @@ export const playerService = {
     // Compare two players
     comparePlayers: (player1Id, player2Id) => 
         api.get(`/compare?player1=${player1Id}&player2=${player2Id}`),
+
+    getTwoWayVenn: (season = '2025-26', ppg = 20, rpg = 8, apg = 6) =>
+    api.get(
+        `/players/venn/two-way?season=${season}&ppg=${ppg}&rpg=${rpg}&apg=${apg}`
+    ),
 };
 
 export default api;
